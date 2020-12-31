@@ -2,6 +2,8 @@ import { createElement as preactH } from 'preact';
 import React, { createElement, render, cloneElement } from 'preact/compat';
 import { setupScratch, teardown } from '../../../test/_util/helpers';
 
+/** @jsx createElement */
+
 describe('compat cloneElement', () => {
 	/** @type {HTMLDivElement} */
 	let scratch;

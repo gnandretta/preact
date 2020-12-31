@@ -42,9 +42,9 @@ describe('serializeVNode', () => {
 	it('should serialize props', () => {
 		expect(serializeVNode(<div class="foo" />)).to.equal('<div class="foo" />');
 
-		let noop = () => {};
+		let noop = function noopFn() {};
 		expect(serializeVNode(<div onClick={noop} />)).to.equal(
-			'<div onClick="function noop() {}" />'
+			'<div onClick="function noopFn() {}" />'
 		);
 
 		function Foo(props) {

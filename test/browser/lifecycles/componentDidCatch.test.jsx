@@ -26,7 +26,7 @@ describe('Lifecycle methods', () => {
 		/** @type {Error} */
 		let expectedError;
 
-		/** @type {typeof import('../../../').Component} */
+		/** @type {typeof import('../../../src').Component} */
 		let ThrowErr;
 		class Receiver extends Component {
 			componentDidCatch(error) {
@@ -66,7 +66,6 @@ describe('Lifecycle methods', () => {
 			sinon.spy(ThrowErr.prototype, 'componentDidCatch');
 
 			expectedError = undefined;
-
 			Receiver.prototype.componentDidCatch.resetHistory();
 			Receiver.prototype.render.resetHistory();
 		});

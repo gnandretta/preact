@@ -20,6 +20,7 @@ module.exports = function(api) {
 				'@babel/preset-env',
 				{
 					loose: true,
+					modules: false,
 					exclude: ['@babel/plugin-transform-typeof-symbol'],
 					targets: {
 						browsers: ['last 2 versions', 'IE >= 9']
@@ -33,10 +34,15 @@ module.exports = function(api) {
 			'babel-plugin-transform-async-to-promises',
 			['babel-plugin-transform-rename-properties', { rename }]
 		],
-		include: ['**/src/**/*.js', '**/test/**/*.js'],
+		include: [
+			'**/src/**/*.js',
+			'**/src/**/*.jsx',
+			'**/test/**/*.js',
+			'**/test/**/*.jsx'
+		],
 		overrides: [
 			{
-				test: /(component-stack|debug)\.test\.js$/,
+				test: /(component-stack|debug)\.test\.jsx?$/,
 				plugins: ['@babel/plugin-transform-react-jsx-source']
 			}
 		]

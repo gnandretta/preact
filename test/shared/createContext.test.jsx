@@ -1,4 +1,4 @@
-import { createElement, createContext } from '../../';
+import { createElement, createContext } from '../../src';
 import { expect } from 'chai';
 
 /** @jsx createElement */

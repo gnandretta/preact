@@ -7,10 +7,12 @@ var coverage = String(process.env.COVERAGE) === 'true',
 	masterBranch = String(process.env.GITHUB_WORKFLOW) === 'CI-master',
 	sauceLabs = ci && !pullRequest && masterBranch,
 	performance = !coverage && String(process.env.PERFORMANCE) !== 'false',
-	webpack = require('webpack'),
 	path = require('path'),
 	errorstacks = require('errorstacks'),
 	kl = require('kolorist');
+
+const babel = require('@babel/core');
+const fs = require('fs').promises;
 
 // This strips Karma's annoying `LOG: '...'` string from logs
 const orgStdoutWrite = process.stdout.write;
@@ -86,8 +88,13 @@ var localLaunchers = {
 	}
 };
 
-const subPkgPath = pkgName =>
-	path.join(__dirname, pkgName, !minify ? 'src' : '');
+const subPkgPath = pkgName => {
+	const parts = !minify ? ['src', 'index.js'] : [];
+	return path.join(__dirname, pkgName, ...parts);
+};
+
+const pending = new Map();
+const cache = new Map();
 
 module.exports = function(config) {
 	config.set({
@@ -155,81 +162,117 @@ module.exports = function(config) {
 			{
 				pattern:
 					config.grep ||
-					'{debug,hooks,compat,test-utils,jsx-runtime,}/test/{browser,shared}/**/*.test.js',
-				watched: false
+					'{debug,hooks,compat,test-utils,jsx-runtime,}/test/{browser,shared}/**/*.test.jsx',
+				watched: false,
+				type: 'js'
 			}
 		],
 
+		mime: {
+			'text/javascript': ['js', 'jsx']
+		},
+
 		preprocessors: {
 			'{debug,hooks,compat,test-utils,jsx-runtime,}/test/**/*': [
-				'webpack',
+				'esbuild',
 				'sourcemap'
 			]
 		},
 
-		webpack: {
-			output: {
-				filename: '[name].js'
+		esbuild: {
+			define: {
+				COVERAGE: coverage,
+				'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV || ''),
+				ENABLE_PERFORMANCE: performance
 			},
-			mode: 'development',
-			devtool: 'inline-source-map',
-			module: {
-				noParse: [/benchmark\.js$/],
-
-				/* Transpile source and test files */
-				rules: [
-					// Special case for sinon.js which ships ES2015+ code in their
-					// esm bundle
-					{
-						test: /node_modules\/sinon\/.*\.jsx?$/,
-						loader: 'babel-loader'
-					},
-
-					{
-						test: /\.jsx?$/,
-						exclude: /node_modules/,
-						loader: 'babel-loader',
-						options: {
-							plugins: [
-								coverage && [
-									'istanbul',
-									{ include: minify ? '**/dist/**/*.js' : '**/src/**/*.js' }
-								]
-							].filter(Boolean)
-						}
-					}
-				]
-			},
-			resolve: {
-				// The React DevTools integration requires preact as a module
-				// rather than referencing source files inside the module
-				// directly
-				alias: {
-					'preact/debug': subPkgPath('./debug/'),
-					'preact/devtools': subPkgPath('./devtools/'),
-					'preact/compat': subPkgPath('./compat/'),
-					'preact/hooks': subPkgPath('./hooks/'),
-					'preact/test-utils': subPkgPath('./test-utils/'),
-					'preact/jsx-runtime': subPkgPath('./jsx-runtime/'),
-					'preact/jsx-dev-runtime': subPkgPath('./jsx-runtime/'),
-					preact: subPkgPath('')
-				}
-			},
+			jsxFactory: 'createElement',
+			jsxFragment: 'Fragment',
 			plugins: [
-				new webpack.DefinePlugin({
-					coverage: coverage,
-					NODE_ENV: JSON.stringify(process.env.NODE_ENV || ''),
-					ENABLE_PERFORMANCE: performance
-				})
-			],
-			performance: {
-				hints: false
-			}
-		},
+				{
+					name: 'alias',
+					setup(build) {
+						const alias = {
+							'preact/debug': subPkgPath('./debug/'),
+							'preact/devtools': subPkgPath('./devtools/'),
+							'preact/compat': subPkgPath('./compat/'),
+							'preact/hooks': subPkgPath('./hooks/'),
+							'preact/test-utils': subPkgPath('./test-utils/'),
+							'preact/jsx-runtime': subPkgPath('./jsx-runtime/'),
+							'preact/jsx-dev-runtime': subPkgPath('./jsx-runtime/'),
+							preact: subPkgPath('')
+						};
 
-		webpackMiddleware: {
-			noInfo: true,
-			stats: 'errors-only'
+						build.onResolve({ filter: /^preact.*/ }, args => {
+							const pkg = alias[args.path];
+							return {
+								path: pkg,
+								namespace: 'preact'
+							};
+						});
+
+						const rename = {};
+						const mangle = require('./mangle.json');
+						for (let prop in mangle.props.props) {
+							let name = prop;
+							if (name[0] === '$') {
+								name = name.slice(1);
+							}
+
+							rename[name] = mangle.props.props[prop];
+						}
+
+						build.onLoad({ filter: /\.jsx?$/ }, async args => {
+							const contents = await fs.readFile(args.path, 'utf-8');
+
+							const cached = cache.get(args.path);
+							if (cached && cached.input === contents) {
+								return {
+									contents: cached.result,
+									resolveDir: path.dirname(args.path),
+									loader: args.path.endsWith('jsx') ? 'jsx' : 'js'
+								};
+							}
+
+							let result = contents;
+
+							if (!pending.has(args.path)) {
+								pending.set(args.path, []);
+
+								const tmp = await babel.transformAsync(result, {
+									filename: args.path,
+									plugins: [
+										coverage && [
+											'istanbul',
+											{
+												include: minify
+													? ['**/dist/**/*.js', '**/dist/**/*.jsx']
+													: ['**/src/**/*.js', '**/src/**/*.jsx']
+											}
+										]
+									].filter(Boolean)
+								});
+								result = tmp.code || result;
+								cache.set(args.path, { input: contents, result });
+
+								const waited = pending.get(args.path);
+								pending.delete(args.path);
+								waited.forEach(fn => fn());
+							} else {
+								await new Promise(r => {
+									pending.get(args.path).push(r);
+								});
+								result = cache.get(args.path).result;
+							}
+
+							return {
+								contents: result,
+								resolveDir: path.dirname(args.path),
+								loader: args.path.endsWith('.jsx') ? 'jsx' : 'js'
+							};
+						});
+					}
+				}
+			]
 		}
 	});
 };

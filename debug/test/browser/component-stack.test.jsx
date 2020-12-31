@@ -11,7 +11,10 @@ describe('component stack', () => {
 	let errors = [];
 	let warnings = [];
 
-	const getStack = arr => arr[0].split('\n\n')[1];
+	const getStack = arr => {
+		const i = /plugin-transform-react-jsx-source/.test(arr[0]) ? 1 : 0;
+		return arr[i].split('\n\n')[1];
+	};
 
 	beforeEach(() => {
 		scratch = setupScratch();
