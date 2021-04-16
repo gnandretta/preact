@@ -29,6 +29,7 @@
 [![Preact Slack Community](https://preact-slack.now.sh/badge.svg)](https://chat.preactjs.com)
 [![OpenCollective Backers](https://opencollective.com/preact/backers/badge.svg)](#backers)
 [![OpenCollective Sponsors](https://opencollective.com/preact/sponsors/badge.svg)](#sponsors)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fgnandretta%2Fpreact.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Fgnandretta%2Fpreact?ref=badge_shield)
 
 [![coveralls](https://img.shields.io/coveralls/preactjs/preact/master.svg)](https://coveralls.io/github/preactjs/preact)
 [![gzip size](http://img.badgesize.io/https://unpkg.com/preact/dist/preact.min.js?compression=gzip&label=gzip)](https://unpkg.com/preact/dist/preact.min.js)
@@ -183,3 +184,6 @@ MIT
 [preact/compat]: https://github.com/preactjs/preact/tree/master/compat
 [hyperscript]: https://github.com/dominictarr/hyperscript
 [DevTools]: https://github.com/preactjs/preact-devtools
+
+
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fgnandretta%2Fpreact.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Fgnandretta%2Fpreact?ref=badge_large)
